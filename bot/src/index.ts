@@ -1,4 +1,4 @@
-import { aiBackend, assistant, coverLetter, recruiterReply, scoreJobs } from "./ai";
+import { aiBackend, assistant, coverLetter, detectStage, recruiterReply, scoreJobs, type Stage } from "./ai";
 import { DEFAULT_KEYWORDS, RESUME_URL, SITE_URL } from "./profile";
 import { SOURCES, collectJobs, hhFullDescription, type Job, type SourceResult } from "./sources";
 import { SCHEMA } from "./schema";
@@ -53,7 +53,8 @@ function rowToJob(r: any): JobRow {
 
 const STATUS_LABEL: Record<string, string> = {
   sent: "новая",
-  applied: "✅ откликнулся",
+  applied: "✅ откликнулся · жду ответа",
+  test: "📝 тестовое",
   interview: "📞 собеседование",
   offer: "🎉 оффер",
   rejected: "❌ отказ",
@@ -61,7 +62,7 @@ const STATUS_LABEL: Record<string, string> = {
   queued: "в очереди",
 };
 
-function jobCard(j: JobRow): { text: string; keyboard: Keyboard } {
+function jobCard(j: JobRow, manage = false): { text: string; keyboard: Keyboard } {
   const score = j.score != null && j.score >= 0 ? `${j.score >= 80 ? "🔥" : j.score >= 65 ? "✨" : "•"} ${j.score}% · ` : "";
   const meta = [j.company && `🏢 ${esc(j.company)}`, j.location && `📍 ${esc(j.location)}`, j.salary && `💰 ${esc(j.salary)}`].filter(Boolean).join("\n");
   const text = [
@@ -73,8 +74,10 @@ function jobCard(j: JobRow): { text: string; keyboard: Keyboard } {
     .filter(Boolean)
     .join("\n");
   const keyboard: Keyboard = [[{ text: "✍️ Письмо", callback_data: `cl:${j.rid}` }, { text: "🔗 Открыть", url: j.url }]];
-  if (j.status === "sent" || j.status === "hidden") keyboard.push([{ text: "✅ Откликнулся", callback_data: `st:${j.rid}:applied` }, { text: "🙈 Скрыть", callback_data: `st:${j.rid}:hidden` }]);
-  else if (j.status === "applied" || j.status === "interview")
+  if (j.status === "sent" || j.status === "hidden" || j.status === "queued")
+    keyboard.push([{ text: "✅ Откликнулся", callback_data: `st:${j.rid}:applied` }, { text: "🙈 Скрыть", callback_data: `st:${j.rid}:hidden` }]);
+  // Stages after applying are set automatically from employers' messages; manual buttons only in /pipeline.
+  else if (manage)
     keyboard.push([
       { text: "📞 Собес", callback_data: `st:${j.rid}:interview` },
       { text: "🎉 Оффер", callback_data: `st:${j.rid}:offer` },
@@ -167,6 +170,42 @@ async function saveReport(env: Env, report: SourceResult[]) {
   await setSetting(env, "source_report", JSON.stringify(prev));
 }
 
+// ───────────────────────── automatic pipeline stages ─────────────────────────
+
+const STAGE_RANK: Record<string, number> = { applied: 1, test: 2, interview: 3, offer: 4 };
+const STAGE_NOTE: Record<Exclude<Stage, "none">, string> = {
+  test: "📝 Прислали тестовое задание",
+  interview: "📞 Приглашение на собеседование",
+  offer: "🎉 Оффер!",
+  rejected: "❌ Отказ",
+};
+
+/** Detects interview/offer/rejection in an employer's message and moves the matching application forward. */
+async function trackStage(env: Env, tg: Telegram, owner: number, text: string, sender: string) {
+  const apps = await env.DB.prepare(
+    "SELECT rid, title, company, status FROM jobs WHERE status IN ('applied','test','interview','offer') ORDER BY updated_at DESC LIMIT 40",
+  ).all<{ rid: number; title: string; company: string; status: string }>();
+  let r;
+  try {
+    r = await detectStage(env, text, sender, apps.results);
+  } catch (e) {
+    console.error("stage detection failed", e);
+    return;
+  }
+  if (r.stage === "none") return;
+  const job = apps.results.find((a) => a.rid === r.rid);
+  const note = `${STAGE_NOTE[r.stage]} — ${esc(sender)}${r.summary ? `\n${esc(r.summary)}` : ""}`;
+  if (!job) {
+    await tg.send(owner, `🔔 ${note}\n\n<i>Не нашёл эту вакансию среди откликов, поэтому этап никуда не записал.</i>`);
+    return;
+  }
+  const forward = r.stage === "rejected" || (STAGE_RANK[r.stage] ?? 0) > (STAGE_RANK[job.status] ?? 0);
+  if (forward) await env.DB.prepare("UPDATE jobs SET status = ?, updated_at = ? WHERE rid = ?").bind(r.stage, now(), job.rid).run();
+  const row = await env.DB.prepare("SELECT * FROM jobs WHERE rid = ?").bind(job.rid).first<any>();
+  const card = jobCard(rowToJob(row), true);
+  await tg.send(owner, `🔔 ${note}\n${forward ? "Этап обновлён автоматически:" : "Вакансия:"}\n\n${card.text}`, card.keyboard);
+}
+
 // ───────────────────────── Telegram Business (chats with recruiters) ─────────────────────────
 
 async function chatHistory(env: Env, chatId: number): Promise<string> {
@@ -210,6 +249,7 @@ async function onBusinessMessage(env: Env, tg: Telegram, m: any) {
   }
   if ((await getSetting(env, "biz_enabled", "1")) !== "1") return;
 
+  await trackStage(env, tg, owner, m.text, name || m.chat?.username || "собеседник");
   const who = `${esc(name)}${m.chat?.username ? ` (@${esc(m.chat.username)})` : ""}`;
   let r;
   try {
@@ -273,7 +313,7 @@ const HELP = `<b>Что я умею</b>
 
 Если подключить меня в Telegram → Настройки → Telegram Business → Чат-боты, я буду отвечать рекрутерам в ваших личных чатах (по умолчанию после вашего одобрения).
 
-Перешлите или вставьте сюда любое сообщение рекрутера (с hh, почты, LinkedIn) — напишу ответ.
+Перешлите или вставьте сюда любое сообщение рекрутера (с hh, почты, LinkedIn) — напишу ответ и сам отмечу этап: тестовое, собеседование, оффер или отказ.
 
 /find — искать сейчас
 /more — показать вакансии из очереди
@@ -315,11 +355,12 @@ async function onCommand(env: Env, tg: Telegram, chatId: number, text: string) {
     }
     case "/pipeline": {
       const rows = await env.DB.prepare(
-        "SELECT * FROM jobs WHERE status IN ('applied','interview','offer') ORDER BY CASE status WHEN 'offer' THEN 0 WHEN 'interview' THEN 1 ELSE 2 END, updated_at DESC LIMIT 15",
+        "SELECT * FROM jobs WHERE status IN ('applied','test','interview','offer') ORDER BY CASE status WHEN 'offer' THEN 0 WHEN 'interview' THEN 1 WHEN 'test' THEN 2 ELSE 3 END, updated_at DESC LIMIT 15",
       ).all<any>();
       if (!rows.results.length) return void (await tg.send(chatId, "Откликов пока нет. Нажимайте «✅ Откликнулся» на карточках вакансий, и я буду вести их здесь."));
+      await tg.send(chatId, "Этапы обновляются сами, когда работодатель пишет вам в Telegram или вы пересылаете мне его сообщение. Кнопки ниже — если нужно поправить вручную.");
       for (const r of rows.results) {
-        const card = jobCard(rowToJob(r));
+        const card = jobCard(rowToJob(r), true);
         await tg.send(chatId, card.text, card.keyboard);
       }
       return;
@@ -420,10 +461,10 @@ async function onCallback(env: Env, tg: Telegram, q: any) {
     await env.DB.prepare("UPDATE jobs SET status = ?, updated_at = ? WHERE rid = ?").bind(extra, now(), id).run();
     const row = await env.DB.prepare("SELECT * FROM jobs WHERE rid = ?").bind(id).first<any>();
     if (row) {
-      const card = jobCard(rowToJob(row));
+      const card = jobCard(rowToJob(row), extra !== "applied" && extra !== "hidden");
       await tg.edit(chatId, msgId, card.text, card.keyboard);
     }
-    const toast: Record<string, string> = { applied: "Записал отклик", interview: "Удачи на собеседовании!", offer: "Поздравляю! 🎉", rejected: "Записал. Идём дальше", hidden: "Скрыл" };
+    const toast: Record<string, string> = { applied: "Записал. Этапы буду отмечать сам по ответам работодателя", interview: "Удачи на собеседовании!", offer: "Поздравляю! 🎉", rejected: "Записал. Идём дальше", hidden: "Скрыл" };
     return tg.answer(q.id, toast[extra]);
   }
 
@@ -510,6 +551,10 @@ async function onPrivateMessage(env: Env, tg: Telegram, m: any) {
   // Anything else (a forwarded recruiter message, a question) goes to the AI assistant.
   await tg.typing(chatId);
   const fwd = m.forward_origin ? `Пересланное сообщение от ${m.forward_origin.sender_user?.first_name ?? m.forward_origin.sender_user_name ?? m.forward_origin.chat?.title ?? "собеседника"}:\n` : "";
+  if (m.forward_origin || text.length > 60) {
+    const sender = m.forward_origin?.sender_user?.first_name ?? m.forward_origin?.sender_user_name ?? m.forward_origin?.chat?.title ?? "работодатель";
+    await trackStage(env, tg, owner!, text, sender);
+  }
   try {
     await tg.send(chatId, esc(await assistant(env, fwd + text)));
   } catch (e: any) {
