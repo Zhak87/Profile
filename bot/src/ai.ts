@@ -164,3 +164,46 @@ export async function assistant(env: Env, question: string): Promise<string> {
     { effort: "medium", maxTokens: 4000 },
   );
 }
+
+export type Stage = "none" | "test" | "interview" | "offer" | "rejected";
+export type StageResult = { stage: Stage; rid: number | null; summary: string };
+
+/** Reads an employer's message and tells which hiring stage it signals and which of the owner's applications it belongs to. */
+export async function detectStage(env: Env, message: string, sender: string, applications: { rid: number; title: string; company: string }[]): Promise<StageResult> {
+  const schema = {
+    type: "object",
+    properties: {
+      stage: { type: "string", enum: ["none", "test", "interview", "offer", "rejected"] },
+      rid: { type: ["integer", "null"] },
+      summary: { type: "string" },
+    },
+    required: ["stage", "rid", "summary"],
+    additionalProperties: false,
+  };
+  const list = applications.map((a) => `rid=${a.rid}: ${a.title} — ${a.company || "компания не указана"}`).join("\n") || "нет";
+  const text = await complete(
+    env,
+    "Ты классифицируешь сообщения работодателей кандидату. Отвечай строго по схеме.",
+    `Сообщение от «${sender}»:
+"""
+${message.slice(0, 4000)}
+"""
+
+Определи этап найма, который это сообщение означает:
+- interview — приглашают на собеседование/созвон/интервью или назначают его время;
+- test — присылают тестовое задание;
+- offer — делают предложение о работе (оффер, условия, «готовы взять»);
+- rejected — отказ;
+- none — всё остальное (вопросы, уточнения, просьба резюме, не про работу).
+rid — номер отклика из списка ниже, к которому относится сообщение (по компании или должности), или null, если непонятно.
+summary — одно короткое предложение по-русски: что произошло и что нужно сделать кандидату (например, время созвона).
+
+Отклики кандидата:
+${list}`,
+    { schema, effort: "low", maxTokens: 2000 },
+  );
+  const parsed = parseJson<StageResult>(text);
+  if (!parsed || !["none", "test", "interview", "offer", "rejected"].includes(parsed.stage)) return { stage: "none", rid: null, summary: "" };
+  if (parsed.rid != null && !applications.some((a) => a.rid === parsed.rid)) parsed.rid = null;
+  return parsed;
+}
