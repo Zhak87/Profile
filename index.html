@@ -234,7 +234,7 @@ section{position:relative}
 .cell{--x:50%;--y:50%;position:relative;padding:28px;border-radius:var(--radius);border:1px solid var(--line);background:var(--ink-2);overflow:hidden;display:grid;gap:16px;align-content:start;min-width:0}
 .cell::before{content:"";position:absolute;inset:0;background:radial-gradient(420px circle at var(--x) var(--y),rgba(30,200,234,.16),transparent 45%);opacity:0;transition:opacity .3s;pointer-events:none}
 .cell:hover::before{opacity:1}
-.cell.w3{grid-column:span 3}.cell.w2{grid-column:span 2}.cell.w4{grid-column:span 4}
+.cell.w6{grid-column:span 6}.cell.w3{grid-column:span 3}.cell.w2{grid-column:span 2}.cell.w4{grid-column:span 4}
 .cell h3{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .cell h3 small{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-weight:400}
 .cell .chips{position:relative}
@@ -266,12 +266,43 @@ section{position:relative}
 .cmdk li.sel{background:rgba(30,200,234,.12);color:var(--fg)}
 .cmdk .hint{padding:10px 18px;border-top:1px solid var(--line);font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 
+
+/* ---------- bots & AI ---------- */
+#ai{overflow-x:clip}
+.ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(32px,5vw,72px);align-items:center}
+.ai-list{display:grid;gap:14px;margin-top:8px}
+.ai-item{display:grid;grid-template-columns:44px 1fr;gap:16px;padding:20px;border:1px solid var(--line);border-radius:var(--radius);background:rgba(13,19,48,.45);transition:border-color .3s,background .3s}
+.ai-item:hover{border-color:rgba(30,200,234,.45);background:rgba(13,19,48,.8)}
+.ai-item .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(255,199,44,.12);color:var(--sun)}
+.ai-item .ico svg{width:22px;height:22px}
+.ai-item h3{font-size:18px;margin-bottom:6px}
+.ai-item p{color:var(--muted);font-size:15px}
+.phone{position:relative;width:min(380px,100%);margin-inline:auto;border-radius:36px;padding:12px;background:linear-gradient(160deg,#1a2350,#0a0f26);border:1px solid rgba(150,175,255,.22);box-shadow:0 60px 120px -40px rgba(30,200,234,.45),0 0 0 1px rgba(0,0,0,.4) inset}
+.phone::before{content:"";position:absolute;inset:-30% -20%;background:radial-gradient(circle at 50% 40%,rgba(255,199,44,.18),transparent 60%);z-index:-1;pointer-events:none}
+.tg{border-radius:26px;overflow:hidden;background:#0B1124;display:flex;flex-direction:column;min-height:520px}
+.tg-head{display:flex;align-items:center;gap:10px;padding:14px 16px;background:#111a3a;border-bottom:1px solid var(--line)}
+.tg-head .av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--sky),#3a6bff);display:grid;place-items:center;font-family:var(--f-display);font-size:13px;color:var(--ink);font-weight:800}
+.tg-head b{display:block;font-size:15px}
+.tg-head small{color:var(--sky);font-size:12px}
+.tg-body{flex:1;padding:16px 12px;display:flex;flex-direction:column;gap:10px;font-size:14px;background:radial-gradient(circle at 20% 10%,rgba(58,107,255,.12),transparent 50%),#0B1124}
+.msg{max-width:86%;padding:10px 13px;border-radius:16px;line-height:1.45;opacity:1}
+.msg.in{background:#18214a;border-bottom-left-radius:4px;align-self:flex-start}
+.msg.out{background:var(--sky);color:var(--ink);border-bottom-right-radius:4px;align-self:flex-end;font-weight:600}
+.msg .score{display:inline-block;font-family:var(--f-mono);font-size:12px;font-weight:600;color:var(--ink);background:var(--ok);border-radius:6px;padding:1px 7px;margin-left:4px}
+.msg .meta{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.kb{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-self:stretch;max-width:86%}
+.kb span{text-align:center;padding:8px;border-radius:10px;background:rgba(30,200,234,.12);color:var(--sky);font-size:13px;font-weight:600}
+.typing{display:inline-flex;gap:4px;padding:12px 14px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typ 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes typ{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
+
 /* ---------- responsive ---------- */
 .no-pin .track{flex-wrap:wrap;width:auto}
 .no-pin .card{width:min(560px,100%)}
 @media (max-width:1080px){
   .nav ul{display:none}
-  .about-grid{grid-template-columns:1fr}
+  .about-grid,.ai-grid{grid-template-columns:1fr}
   .stats{grid-template-columns:repeat(2,1fr)}
   .bento .cell{grid-column:span 3}
   .bento .cell.w4,.bento .cell.wide{grid-column:span 6}
@@ -316,6 +347,7 @@ section{position:relative}
   <a href="#top" class="logo" data-cursor><b>ДЖ</b><span>duman.dev</span></a>
   <ul>
     <li><a href="#about">Обо мне</a></li>
+    <li><a href="#ai">Боты и ИИ</a></li>
     <li><a href="#experience">Опыт</a></li>
     <li><a href="#projects">Проекты</a></li>
     <li><a href="#skills">Стек</a></li>
@@ -382,7 +414,7 @@ section{position:relative}
       <span class="line" aria-hidden="true"><span class="split">Думан</span></span>
       <span class="line accent" aria-hidden="true"><span class="split">Жакенов</span></span>
     </h1>
-    <p class="hero-sub hero-in"><b>Full-stack разработчик.</b> Строю корпоративные порталы, чаты, документооборот и платформы обучения на <b>React + TypeScript</b> и <b>C#/.NET · Node.js</b>.</p>
+    <p class="hero-sub hero-in"><b>Full-stack разработчик.</b> Строю корпоративные порталы, документооборот и платформы обучения на <b>React + TypeScript</b> и <b>C#/.NET · Node.js</b>. Делаю <b>Telegram-ботов</b> и внедряю <b>ИИ</b>.</p>
     <div class="hero-cta hero-in">
       <a href="#projects" class="btn btn-primary magnetic" data-cursor>Смотреть проекты
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
@@ -452,6 +484,52 @@ duman — full-stack developer
         <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h4l3-8 4 16 3-8h2"/></svg></div>
         <h3>Корпоративные системы</h3>
         <p>Порталы, чаты, документооборот, BPM, интеграции с почтой и внешними сервисами.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ================= BOTS & AI ================= -->
+<section class="section" id="ai" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">Боты и ИИ</span>
+      <h2>Telegram-боты и <span class="grad-text">внедрение ИИ</span></h2>
+      <p>Делаю ботов, которые работают за людей 24/7, и встраиваю языковые модели в процессы компании: от ответов клиентам до разбора документов.</p>
+    </div>
+    <div class="ai-grid">
+      <div class="ai-list">
+        <div class="ai-item reveal">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4 3 11l6 2 2 6 3-4 5 4z"/><path d="m9 13 8-6"/></svg></div>
+          <div><h3>Telegram-боты под ключ</h3><p>Меню и кнопки, оплата, рассылки, админ-панель, база данных. Бесплатный хостинг на Cloudflare Workers без «засыпания».</p></div>
+        </div>
+        <div class="ai-item reveal">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3.5"/></svg></div>
+          <div><h3>ИИ-ассистенты и чат-боты</h3><p>Ответы клиентам и сотрудникам на основе ваших документов и базы знаний (RAG), на русском и казахском.</p></div>
+        </div>
+        <div class="ai-item reveal">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h10l6 6v10H4z"/><path d="M14 4v6h6M8 14h8M8 18h5"/></svg></div>
+          <div><h3>Автоматизация с LLM</h3><p>Классификация заявок, выжимки из документов, генерация писем и отчётов, оценка и сортировка входящих данных.</p></div>
+        </div>
+        <div class="ai-item reveal">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="2"/></svg></div>
+          <div><h3>Интеграция в ваши системы</h3><p>Подключаю ИИ к порталу, CRM или документообороту через REST API: Claude, OpenAI, Llama и другие модели.</p></div>
+        </div>
+      </div>
+
+      <div class="phone reveal" aria-label="Пример работы бота поиска работы в Telegram">
+        <div class="tg">
+          <div class="tg-head"><span class="av">AI</span><div><b>Бот поиска работы</b><small>бот · онлайн</small></div></div>
+          <div class="tg-body" id="tgBody">
+            <div class="msg out">/find</div>
+            <div class="msg in">Проверил hh.kz, Habr Career и Remotive. Нашёл 3 подходящие вакансии 👇</div>
+            <div class="msg in"><b>Middle React Developer</b> <span class="score">86%</span><span class="meta">Астана · гибрид · React, TypeScript, .NET</span></div>
+            <div class="kb"><span>✍️ Письмо</span><span>✅ Откликнулся</span></div>
+            <div class="msg out">✍️ Письмо</div>
+            <div class="msg in">Здравствуйте! Меня зовут Думан, я full-stack разработчик с опытом 4+ года на React и C#/.NET…<span class="meta">Сопроводительное готово, ссылка на портфолио добавлена</span></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -560,6 +638,29 @@ duman — full-stack developer
       <div class="proj-count"><b id="projNow">01</b> / <span id="projTotal">07</span> · листайте вниз</div>
     </div>
     <div class="track" id="track">
+
+      <article class="card tilt">
+        <div class="mock"><div class="mock-bar"><div class="dots"><i></i><i></i><i></i></div><div class="url">t.me · бот поиска работы</div></div>
+          <div class="mock-body"><div class="m-main" style="grid-template-columns:1fr 1fr;padding:12px;gap:12px">
+              <div style="display:grid;gap:6px;align-content:start">
+                <div class="bubble" style="background:var(--sky);color:var(--ink);justify-self:end">/find</div>
+                <div class="bubble" style="background:#1A2350">Найдено 3 вакансии</div>
+                <div class="m-card"><b style="font-size:9px">Middle React Dev <span class="pill" style="background:#3DDC9733;color:var(--ok)">86%</span></b><div class="ln" style="width:70%"></div></div>
+                <div class="m-row" style="gap:4px"><span class="pill" style="background:#1EC8EA22;color:var(--sky)">Письмо</span><span class="pill" style="background:#1EC8EA22;color:var(--sky)">Откликнулся</span></div>
+              </div>
+              <div class="m-card" style="align-content:start"><b style="font-size:9px">Воронка</b>
+                <div class="m-row" style="justify-content:space-between"><span>Отклики</span><b>24</b></div><div class="poll"><b style="width:100%"></b></div>
+                <div class="m-row" style="justify-content:space-between"><span>Собесы</span><b>6</b></div><div class="poll"><b style="width:25%"></b></div>
+                <div class="m-row" style="justify-content:space-between"><span>Офферы</span><b>1</b></div><div class="poll"><b style="width:6%;background:var(--sun)"></b></div>
+              </div>
+            </div></div></div>
+        <div class="card-info">
+          <div class="card-top"><h3>Бот поиска работы</h3><span class="badge b-live">ИИ · Telegram</span></div>
+          <p>Ищет вакансии на hh.kz, Habr Career и в удалённых сервисах, ИИ оценивает совпадение с резюме, пишет сопроводительные письма и ведёт воронку до оффера.</p>
+          <div class="chips"><span class="chip">TypeScript</span><span class="chip">Cloudflare Workers</span><span class="chip">D1</span><span class="chip">Claude / Llama</span></div>
+          <div class="card-links"><a href="https://github.com/Zhak87/Profile/tree/main/bot" target="_blank" rel="noopener">Код на GitHub ↗</a></div>
+        </div>
+      </article>
 
       <article class="card tilt">
         <div class="mock"><div class="mock-bar"><div class="dots"><i></i><i></i><i></i></div><div class="url">portal.qazaqgaz-ntc.kz/feed</div></div>
@@ -720,6 +821,8 @@ duman — full-stack developer
         <span class="chip main">REST API</span><span class="chip">SOAP</span><span class="chip">Микросервисы</span><span class="chip main">JWT</span><span class="chip">RBAC</span><span class="chip">BPM</span></div></div>
       <div class="cell w2 reveal"><h3>Инструменты <small>8</small></h3><div class="chips">
         <span class="chip main">Git</span><span class="chip">GitHub / GitLab</span><span class="chip">Docker</span><span class="chip">Linux</span><span class="chip">SOLID</span><span class="chip">OOP</span><span class="chip">Code review</span><span class="chip">Agile / Scrum</span></div></div>
+      <div class="cell w6 wide reveal"><h3>Боты и ИИ <small>7</small></h3><div class="chips">
+        <span class="chip main">Telegram Bot API</span><span class="chip main">LLM API (Claude, OpenAI)</span><span class="chip">RAG</span><span class="chip">Промпт-инжиниринг</span><span class="chip">Cloudflare Workers</span><span class="chip">Workers AI / Llama</span><span class="chip">Cron-автоматизация</span></div></div>
     </div>
   </div>
 </section>
@@ -849,7 +952,7 @@ duman — full-stack developer
   })();
 
   /* ---------- marquee ---------- */
-  const tech = ['React', 'TypeScript', 'C# / .NET', 'Next.js', 'Node.js', 'PostgreSQL', 'Angular', 'Entity Framework', 'Docker', 'Vue.js', 'Spring', 'MongoDB', 'Tailwind', 'REST API'];
+  const tech = ['React', 'TypeScript', 'C# / .NET', 'Next.js', 'Node.js', 'PostgreSQL', 'Angular', 'Entity Framework', 'Docker', 'Vue.js', 'Spring', 'MongoDB', 'Tailwind', 'REST API', 'Telegram Bots', 'AI / LLM'];
   const fill = (el, arr) => { const h = arr.map(t => `<span>${t}</span>`).join(''); el.innerHTML = h + h; };
   fill($('#mq1'), tech); fill($('#mq2'), [...tech].reverse());
 
@@ -892,7 +995,7 @@ duman — full-stack developer
   const secObs = new IntersectionObserver(entries => entries.forEach(e => {
     if (e.isIntersecting) navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id));
   }), { rootMargin: '-45% 0px -50% 0px' });
-  ['about', 'experience', 'projects', 'skills', 'contact'].forEach(id => secObs.observe($('#' + id)));
+  ['about', 'ai', 'experience', 'projects', 'skills', 'contact'].forEach(id => secObs.observe($('#' + id)));
 
   /* ---------- hero parallax (mouse + scroll) ---------- */
   const layers = $$('.scene .layer');
@@ -1005,6 +1108,7 @@ duman — full-stack developer
     $$('.reveal').forEach(el => {
       gsap.from(el, { y: 50, opacity: 0, duration: 1.1, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 92%', once: true } });
     });
+    gsap.from('#tgBody > *', { y: 24, opacity: 0, scale: 0.96, duration: 0.6, ease: 'back.out(1.6)', stagger: 0.45, scrollTrigger: { trigger: '.phone', start: 'top 75%', once: true } });
     gsap.to('#tlProgress', { scaleY: 1, ease: 'none', scrollTrigger: { trigger: '#timeline', start: 'top 70%', end: 'bottom 70%', scrub: true } });
     gsap.to('.big-sun', { rotate: 120, ease: 'none', scrollTrigger: { trigger: '#contact', start: 'top bottom', end: 'bottom top', scrub: true } });
     gsap.from('.contact h2', { letterSpacing: '0.04em', ease: 'none', scrollTrigger: { trigger: '#contact', start: 'top bottom', end: 'center center', scrub: true } });
@@ -1051,6 +1155,7 @@ duman — full-stack developer
   const cmdk = $('#cmdk'), input = $('#cmdkInput'), list = $('#cmdkList');
   const cmds = [
     { t: 'Обо мне', k: 'раздел', run: () => goTo('#about') },
+    { t: 'Боты и ИИ', k: 'раздел', run: () => goTo('#ai') },
     { t: 'Опыт работы', k: 'раздел', run: () => goTo('#experience') },
     { t: 'Проекты', k: 'раздел', run: () => goTo('#projects') },
     { t: 'Технологии', k: 'раздел', run: () => goTo('#skills') },
