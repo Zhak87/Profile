@@ -101,7 +101,9 @@ async function rss(url: string, source: string, kind: Job["kind"]): Promise<Job[
 
 export const SOURCES: Source[] = [
   { name: "hh (Казахстан)", kind: "job", fetch: (c) => hh(c, "area=40") },
-  { name: "hh (удалёнка)", kind: "job", fetch: (c) => hh(c, "schedule=remote") },
+  // CIS: Russia, Belarus, Uzbekistan, Kyrgyzstan, Azerbaijan — remote or relocation-friendly roles at CIS companies.
+  { name: "hh (СНГ)", kind: "job", fetch: (c) => hh(c, "area=113&area=16&area=97&area=48&area=9&schedule=remote") },
+  { name: "hh (удалёнка, все регионы)", kind: "job", fetch: (c) => hh(c, "schedule=remote") },
   {
     name: "remotive",
     kind: "job",
