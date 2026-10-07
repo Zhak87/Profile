@@ -14,8 +14,7 @@ binding = "AI"
 [[d1_databases]]
 binding = "DB"
 database_name = "duman-job-bot"
-# Filled in by the deploy workflow (.github/workflows/job-bot.yml).
-database_id = "__D1_DATABASE_ID__"
+# No database_id: `wrangler deploy` creates the database automatically on first deploy.
 
 [observability]
 enabled = true

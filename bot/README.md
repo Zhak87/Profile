@@ -23,16 +23,19 @@
 
 ## Установка (один раз)
 
-1. **Cloudflare**: зарегистрируйтесь на dash.cloudflare.com (бесплатно), откройте *Workers & Pages* один раз, чтобы получить поддомен `*.workers.dev`.
-2. **API-токен**: My Profile → API Tokens → Create Token → шаблон *Edit Cloudflare Workers*, добавьте разрешение *Account → D1 → Edit*. Скопируйте токен и **Account ID** (на главной странице аккаунта справа).
-3. **Секреты GitHub**: репозиторий → Settings → Secrets and variables → Actions → New repository secret:
-   - `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
+Деплой делает сам Cloudflare (Workers Builds) из этого репозитория, ключи в GitHub не нужны. База D1 создаётся автоматически при первом деплое, таблицы — при первом запуске.
+
+1. Cloudflare → Workers & Pages → Create → Import a repository → `Zhak87/Profile`.
+   - Project name: `duman-job-bot` (должно совпадать с `name` в `wrangler.toml`)
+   - Root directory (Advanced settings → Path): `bot`
+   - Build command — пусто, Deploy command — `npx wrangler deploy` (по умолчанию)
+2. После деплоя: Worker → Settings → Variables and Secrets → Add → тип *Secret*:
    - `TELEGRAM_BOT_TOKEN` — токен от @BotFather (лучше перевыпустить: /revoke)
-   - `ANTHROPIC_API_KEY` — необязательно, ключ с console.anthropic.com
+   - `ANTHROPIC_API_KEY` — необязательно, ключ с console.anthropic.com (без него работает бесплатный Workers AI)
    - `HH_TOKEN` — необязательно, токен приложения с dev.hh.ru, если hh начнёт отвечать 403
-4. Actions → *Deploy job bot* → Run workflow. Дальше деплой идёт сам при каждом изменении `bot/` в `main`.
-5. Напишите боту `/start`: первый, кто нажал /start, становится владельцем.
-6. Для переписки с рекрутерами: @BotFather → ваш бот → Bot Settings → Business Mode → Turn on. Затем в Telegram: Настройки → Telegram Business → Чат-боты → выберите бота, доступ «Все, кроме контактов», включите право отвечать.
+3. Откройте адрес Worker'а (`https://duman-job-bot.<ваш-поддомен>.workers.dev`) — бот сам подключится к Telegram и покажет ссылку на себя.
+4. Напишите боту `/start`: первый, кто нажал /start, становится владельцем.
+5. Для переписки с рекрутерами: @BotFather → ваш бот → Bot Settings → Business Mode → Turn on. Затем в Telegram: Настройки → Telegram Business → Чат-боты → выберите бота, доступ «Все, кроме контактов», включите право отвечать.
 
 ## Команды
 
@@ -43,7 +46,7 @@
 ```bash
 cd bot && npm install
 npm run typecheck
-npx wrangler dev   # нужен .dev.vars с TELEGRAM_BOT_TOKEN=...
+npx wrangler dev --local   # нужен .dev.vars с TELEGRAM_BOT_TOKEN=...
 ```
 
 Профиль для ИИ лежит в `src/profile.ts`; площадки — в `src/sources.ts`.

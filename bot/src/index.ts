@@ -1,6 +1,7 @@
 import { aiBackend, assistant, coverLetter, recruiterReply, scoreJobs } from "./ai";
 import { DEFAULT_KEYWORDS, RESUME_URL, SITE_URL } from "./profile";
 import { SOURCES, collectJobs, hhFullDescription, type Job, type SourceResult } from "./sources";
+import { SCHEMA } from "./schema";
 import { Telegram, clip, esc, webhookSecret, type Keyboard } from "./telegram";
 
 export interface Env {
@@ -525,9 +526,47 @@ async function onUpdate(env: Env, tg: Telegram, u: any) {
 
 // ───────────────────────── entry points ─────────────────────────
 
+let schemaReady = false;
+async function ensureSchema(env: Env) {
+  if (schemaReady) return;
+  await env.DB.batch(SCHEMA.map((q) => env.DB.prepare(q)));
+  schemaReady = true;
+}
+
+/** Points the Telegram webhook at this Worker and registers the command menu. */
+async function connectWebhook(env: Env, tg: Telegram, origin: string, secret: string) {
+  await tg.call("setWebhook", {
+    url: `${origin}/tg`,
+    secret_token: secret,
+    allowed_updates: ["message", "callback_query", "business_connection", "business_message"],
+  });
+  await tg.call("setMyCommands", {
+    commands: [
+      ["find", "Искать вакансии сейчас"],
+      ["more", "Вакансии из очереди"],
+      ["pipeline", "Мои отклики и собеседования"],
+      ["settings", "Настройки и статистика"],
+      ["mode", "Ответы рекрутерам: авто или с одобрением"],
+      ["sources", "Статус площадок"],
+      ["cv", "Резюме и сайт"],
+      ["help", "Что умеет бот"],
+    ].map(([command, description]) => ({ command, description })),
+  });
+  await setSetting(env, "webhook_url", `${origin}/tg`);
+}
+
+const page = (body: string, status = 200) =>
+  new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><body style="font:18px system-ui;padding:32px;max-width:640px">${body}</body>`, {
+    status,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    if (!env.TELEGRAM_BOT_TOKEN)
+      return page("⚠️ Добавьте секрет <b>TELEGRAM_BOT_TOKEN</b>: Cloudflare → этот Worker → Settings → Variables and Secrets.", 500);
+    await ensureSchema(env);
     const tg = new Telegram(env.TELEGRAM_BOT_TOKEN);
     const secret = await webhookSecret(env.TELEGRAM_BOT_TOKEN);
 
@@ -547,36 +586,26 @@ export default {
       return new Response("ok");
     }
 
-    // Called once by the deploy workflow: points the Telegram webhook at this Worker.
-    if (url.pathname === "/setup" && url.searchParams.get("key") === secret) {
-      await tg.call("setWebhook", {
-        url: `${url.origin}/tg`,
-        secret_token: secret,
-        allowed_updates: ["message", "callback_query", "business_connection", "business_message"],
-        drop_pending_updates: false,
-      });
-      await tg.call("setMyCommands", {
-        commands: [
-          ["find", "Искать вакансии сейчас"],
-          ["more", "Вакансии из очереди"],
-          ["pipeline", "Мои отклики и собеседования"],
-          ["settings", "Настройки и статистика"],
-          ["mode", "Ответы рекрутерам: авто или с одобрением"],
-          ["sources", "Статус площадок"],
-          ["cv", "Резюме и сайт"],
-          ["help", "Что умеет бот"],
-        ].map(([command, description]) => ({ command, description })),
-      });
-      return Response.json({ ok: true, webhook: `${url.origin}/tg` });
+    // Opening the Worker URL in a browser connects the bot to Telegram (only points the webhook at this same Worker).
+    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/setup")) {
+      try {
+        if ((await getSetting(env, "webhook_url")) !== `${url.origin}/tg` || url.pathname === "/setup") await connectWebhook(env, tg, url.origin, secret);
+        const me = await tg.call<{ username: string }>("getMe", {});
+        return page(`✅ Бот работает и подключён к Telegram.<br><br>Откройте <a href="https://t.me/${me.username}">@${me.username}</a> и отправьте /start.<br><br>ИИ: ${esc(aiBackend(env))}`);
+      } catch (e: any) {
+        return page(`⚠️ Не удалось подключить Telegram: <code>${esc(e?.message ?? String(e))}</code><br>Проверьте секрет TELEGRAM_BOT_TOKEN.`, 500);
+      }
     }
 
-    return new Response("Duman job bot is running", { headers: { "content-type": "text/plain; charset=utf-8" } });
+    return new Response("not found", { status: 404 });
   },
 
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    if (!env.TELEGRAM_BOT_TOKEN) return;
     const tg = new Telegram(env.TELEGRAM_BOT_TOKEN);
     ctx.waitUntil(
       (async () => {
+        await ensureSchema(env);
         await runSearch(env, tg).catch((e) => console.error("search failed", e));
         await env.DB.prepare("DELETE FROM updates WHERE ts < ?").bind(now() - 3 * 86400).run();
       })(),
