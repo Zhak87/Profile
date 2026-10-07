@@ -15,7 +15,7 @@ export interface Env {
 }
 
 const now = () => Math.floor(Date.now() / 1000);
-const SOURCES_PER_RUN = 3;
+const SOURCES_PER_RUN = 4;
 const MAX_CARDS_PER_RUN = 8;
 const MAX_NEW_PER_RUN = 24;
 const DEFAULT_HH_QUERY = 'React OR TypeScript OR Frontend OR Fullstack OR "Full-stack" OR ".NET" OR "C#" OR "Node.js" OR "Next.js"';
@@ -99,15 +99,19 @@ async function existingIds(env: Env, ids: string[]): Promise<Set<string>> {
 }
 
 /** Fetch the next group of sources (or all of them), score new matches with AI and send the good ones. */
-async function runSearch(env: Env, tg: Telegram, opts: { all?: boolean; manual?: boolean } = {}) {
+async function runSearch(env: Env, tg: Telegram, opts: { all?: boolean; manual?: boolean; freelanceOnly?: boolean } = {}) {
   const owner = await ownerId(env);
   if (!owner) return;
   if (!opts.manual && (await getSetting(env, "paused")) === "1") return;
 
   // Free Workers have a tight CPU budget per run, so cron rotates through sources a few at a time.
   const cursor = Number(await getSetting(env, "source_cursor", "0")) % SOURCES.length;
-  const pick = opts.all ? SOURCES.map((_, i) => i) : Array.from({ length: SOURCES_PER_RUN }, (_, k) => (cursor + k) % SOURCES.length);
-  if (!opts.all) await setSetting(env, "source_cursor", String((cursor + SOURCES_PER_RUN) % SOURCES.length));
+  const pick = opts.freelanceOnly
+    ? SOURCES.flatMap((src, i) => (src.kind === "freelance" ? [i] : []))
+    : opts.all
+      ? SOURCES.map((_, i) => i)
+      : Array.from({ length: SOURCES_PER_RUN }, (_, k) => (cursor + k) % SOURCES.length);
+  if (!opts.all && !opts.freelanceOnly) await setSetting(env, "source_cursor", String((cursor + SOURCES_PER_RUN) % SOURCES.length));
 
   const ctx = {
     hhQuery: await getSetting(env, "hh_query", DEFAULT_HH_QUERY),
@@ -309,13 +313,14 @@ async function onBusinessConnection(env: Env, tg: Telegram, c: any) {
 // ───────────────────────── commands ─────────────────────────
 
 const HELP = `<b>Что я умею</b>
-Каждые 10 минут проверяю вакансии и фриланс-задачи (hh: Казахстан, СНГ и удалёнка по миру; Habr Career, Remotive, We Work Remotely, Habr Freelance, FL.ru). Казахстан и СНГ в приоритете, оцениваю их ИИ и присылаю подходящие. По кнопке «✍️ Письмо» пишу сопроводительное под конкретную вакансию.
+Каждые 10 минут проверяю вакансии и фриланс-задачи (hh: Казахстан, СНГ и удалёнка по миру; Habr Career, Remotive, We Work Remotely, Habr Freelance, FL.ru, Freelancehunt и проектная работа на hh). Казахстан и СНГ в приоритете, оцениваю их ИИ и присылаю подходящие. По кнопке «✍️ Письмо» пишу сопроводительное под конкретную вакансию.
 
 Если подключить меня в Telegram → Настройки → Telegram Business → Чат-боты, я буду отвечать рекрутерам в ваших личных чатах (по умолчанию после вашего одобрения).
 
 Перешлите или вставьте сюда любое сообщение рекрутера (с hh, почты, LinkedIn) — напишу ответ и сам отмечу этап: тестовое, собеседование, оффер или отказ.
 
 /find — искать сейчас
+/freelance — искать только фриланс-проекты
 /more — показать вакансии из очереди
 /pipeline — мои отклики и собеседования
 /keywords react, .net, … — ключевые слова
@@ -342,6 +347,10 @@ async function onCommand(env: Env, tg: Telegram, chatId: number, text: string) {
     case "/find":
       await tg.send(chatId, "🔎 Ищу по всем площадкам…");
       await runSearch(env, tg, { all: true, manual: true });
+      return;
+    case "/freelance":
+      await tg.send(chatId, "🔎 Ищу фриланс-проекты…");
+      await runSearch(env, tg, { freelanceOnly: true, manual: true });
       return;
     case "/more": {
       const rows = await env.DB.prepare("SELECT * FROM jobs WHERE status = 'queued' ORDER BY score DESC LIMIT 8").all<any>();

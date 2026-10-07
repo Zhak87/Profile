@@ -49,7 +49,7 @@ function money(from?: number | null, to?: number | null, cur?: string | null): s
 
 // hh.ru / hh.kz public vacancy search. Applying through the API is closed to
 // third-party apps since 2025-12-15, so we only search and link to the vacancy.
-async function hh(ctx: SourceCtx, extra: string): Promise<Job[]> {
+async function hh(ctx: SourceCtx, extra: string, kind: Job["kind"] = "job"): Promise<Job[]> {
   const params = new URLSearchParams({ text: ctx.hhQuery, per_page: "50", period: "3", order_by: "publication_time" });
   const headers: Record<string, string> = { "HH-User-Agent": ctx.hhUserAgent };
   if (ctx.hhToken) headers.authorization = `Bearer ${ctx.hhToken}`;
@@ -65,7 +65,7 @@ async function hh(ctx: SourceCtx, extra: string): Promise<Job[]> {
       salary: s ? money(s.from, s.to, s.currency) : "",
       location: [v.area?.name, v.schedule?.name ?? v.work_format?.[0]?.name].filter(Boolean).join(" · "),
       description: stripHtml([v.snippet?.requirement, v.snippet?.responsibility].filter(Boolean).join("\n")),
-      kind: "job",
+      kind,
     };
   });
 }
@@ -104,6 +104,9 @@ export const SOURCES: Source[] = [
   // CIS: Russia, Belarus, Uzbekistan, Kyrgyzstan, Azerbaijan — remote or relocation-friendly roles at CIS companies.
   { name: "hh (СНГ)", kind: "job", fetch: (c) => hh(c, "area=113&area=16&area=97&area=48&area=9&schedule=remote") },
   { name: "hh (удалёнка, все регионы)", kind: "job", fetch: (c) => hh(c, "schedule=remote") },
+  // "Проектная работа" on hh: one-off and contract projects in Kazakhstan and remote across CIS.
+  { name: "hh (проекты, КЗ)", kind: "freelance", fetch: (c) => hh(c, "employment=project&area=40", "freelance") },
+  { name: "hh (проекты, удалёнка)", kind: "freelance", fetch: (c) => hh(c, "employment=project&schedule=remote", "freelance") },
   {
     name: "remotive",
     kind: "job",
@@ -118,7 +121,7 @@ export const SOURCES: Source[] = [
         salary: j.salary ?? "",
         location: j.candidate_required_location ?? "Remote",
         description: stripHtml(j.description ?? "").slice(0, 3000),
-        kind: "job",
+        kind: /contract|freelance/i.test(j.job_type ?? "") ? "freelance" : "job",
       }));
     },
   },
@@ -127,6 +130,7 @@ export const SOURCES: Source[] = [
   { name: "habr career", kind: "job", fetch: () => rss("https://career.habr.com/vacancies/rss?type=all&sort=date", "habr", "job") },
   { name: "habr freelance", kind: "freelance", fetch: () => rss("https://freelance.habr.com/tasks.rss", "habr-freelance", "freelance") },
   { name: "fl.ru", kind: "freelance", fetch: () => rss("https://www.fl.ru/rss/all.xml?category=5", "fl", "freelance") },
+  { name: "freelancehunt", kind: "freelance", fetch: () => rss("https://freelancehunt.com/projects.rss", "freelancehunt", "freelance") },
 ];
 
 export async function collectJobs(ctx: SourceCtx, keywords: string[], pick: number[]): Promise<{ jobs: Job[]; report: SourceResult[] }> {
