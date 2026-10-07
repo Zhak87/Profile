@@ -1,0 +1,20 @@
+name = "duman-job-bot"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# Job search runs every 10 minutes (3 sources per run, rotating).
+[triggers]
+crons = ["*/10 * * * *"]
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "duman-job-bot"
+# No database_id: `wrangler deploy` creates the database automatically on first deploy.
+
+[observability]
+enabled = true
